@@ -5,10 +5,7 @@ using https://github.com/prettymuchbryce/easystarjs for pathfinding
 */
 
 var game = new Phaser.Game(600, 400, Phaser.AUTO, 'TutContainer', { preload: preload, create: create, update:update });
-var upKey;
-var downKey;
-var leftKey;
-var rightKey;
+
 //level array
 var levelData=
 [[1,1,1,1,1,1,1],
@@ -43,12 +40,16 @@ var heroMapSprite;//hero marker sprite in the minimap
 var gameScene;//this is the render texture onto which we draw depth sorted scene
 var floorSprite;
 var wallSprite;
-var heroMapTile=new Phaser.Point(3,3);//hero tile values in array
+var heroMapTile=new Phaser.Point(1,1);//hero tile values in array
 var heroMapPos;//2D coordinates of hero map marker sprite in minimap, assume this is mid point of graphic
 var heroSpeed=1.2;//well, speed of our hero 
 var tapPos=new Phaser.Point(0,0);
 var easystar;
 var isFindingPath=false;
+var path=[];
+var destination=heroMapTile;
+var stepsTillTurn=15;
+var stepsTaken=0;
 
 function preload() {
     //load all necessary assets
@@ -66,10 +67,6 @@ function preload() {
 function create() {
     bmpText = game.add.bitmapText(10, 10, 'font', 'Isometric Tutorial', 18);
     normText=game.add.text(10,360,"hi");
-    upKey = game.input.keyboard.addKey(Phaser.Keyboard.UP);
-    downKey = game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
-    leftKey = game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
-    rightKey = game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
     game.stage.backgroundColor = '#cccccc';
     //we draw the depth sorted scene into this render texture
     gameScene=game.add.renderTexture(game.width,game.height);
@@ -91,9 +88,8 @@ function create() {
 }
 
 function update(){
-  
-    //check key press
-    detectKeyInput();
+    //follow the path
+    aiWalk();
     //if no key is pressed then stop else play walking animation
     if (dY == 0 && dX == 0)
     {
@@ -210,7 +206,6 @@ function findPath(){
     tapPos=getTileCoordinates(tapPos,tileWidth);
     if(tapPos.x>-1&&tapPos.y>-1&&tapPos.x<7&&tapPos.y<7){//tapped within grid
         if(levelData[tapPos.y][tapPos.x]!=1){//not wall tile
-            console.log("finding path");
             isFindingPath=true;
             
             easystar.findPath(heroMapTile.x, heroMapTile.y, tapPos.x, tapPos.y, plotAndMove);
@@ -218,18 +213,25 @@ function findPath(){
         }
     }
 }
-function plotAndMove(path){
+function plotAndMove(newPath){
+    destination=heroMapTile;
+    path=newPath;
     isFindingPath=false;
     repaintMinimap();
-    console.log("found path");
     if (path === null) {
         console.log("No Path was found.");
     }else{
+        path.push(tapPos);
+        path.reverse();
+        path.pop();
         for (var i = 0; i < path.length; i++)
         {
             var tmpSpr=minimap.getByName("tile"+path[i].y+"_"+path[i].x);
             tmpSpr.tint=0x0000ff;
+            console.log("p "+path[i].x+":"+path[i].y);
         }
+        
+        
     }
 }
 function repaintMinimap(){
@@ -316,22 +318,56 @@ function isWalkable(){//It is not advisable to create points in update loop, but
     }
     return able;
 }
-function detectKeyInput(){//assign direction for character & set x,y speed components
-    if (upKey.isDown)
-    {
-        dY = -1;
+function aiWalk(){
+    if(path.length==0){//path has ended
+        if(heroMapTile.x==destination.x&&heroMapTile.y==destination.y){
+            dX=0;
+            dY=0;
+            //console.log("ret "+destination.x+" ; "+destination.y+"-"+heroMapTile.x+" ; "+heroMapTile.y);
+        
+            return;
+        }
     }
-    else if (downKey.isDown)
-    {
-        dY = 1;
+    if(heroMapTile.x==destination.x&&heroMapTile.y==destination.y){//reached current destination, set new, change direction
+        //wait till we are few steps into the tile before we turn
+        stepsTaken++;
+        if(stepsTaken<stepsTillTurn){
+            return;
+        }
+        console.log("at "+heroMapTile.x+" ; "+heroMapTile.y);
+            
+        //heroMapSprite.x=(heroMapTile.x * tileWidth)+(tileWidth/2)-(heroMapSprite.width/2);
+        //heroMapSprite.y=(heroMapTile.y * tileWidth)+(tileWidth/2)-(heroMapSprite.height/2);
+        //heroMapPos.x=heroMapSprite.x+heroMapSprite.width/2;
+        //heroMapPos.y=heroMapSprite.y+heroMapSprite.height/2;
+        
+        stepsTaken=0;
+        destination=path.pop();
+        //console.log("new "+destination.x+" ; "+destination.y);
+        if(heroMapTile.x<destination.x){
+            dX = 1;
+        }else if(heroMapTile.x>destination.x){
+            dX = -1;
+        }else {
+            dX=0;
+        }
+        if(heroMapTile.y<destination.y){
+            dY = 1;
+        }else if(heroMapTile.y>destination.y){
+            dY = -1;
+        }else {
+            dY=0;
+        }
+        if(heroMapTile.x==destination.x){//top or bottom
+            dX=0;
+        }else if(heroMapTile.y==destination.y){//left or right
+            dY=0;
+        }
     }
-    else
+    
+   
+    if (dX==1)
     {
-        dY = 0;
-    }
-    if (rightKey.isDown)
-    {
-        dX = 1;
         if (dY == 0)
         {
             facing = "east";
@@ -348,7 +384,7 @@ function detectKeyInput(){//assign direction for character & set x,y speed compo
             dY=-0.5;
         }
     }
-    else if (leftKey.isDown)
+    else if (dX==-1)
     {
         dX = -1;
         if (dY == 0)
