@@ -1,32 +1,26 @@
 /*global Phaser*/
-/* activity spawns pickups randomly which the character can collect by walking over 
-and introduces doors with trigger tiles which can swap levels
-*/
+/* activity spawns pickups randomly which the character can collect by walking over */
 
 var game = new Phaser.Game(600, 400, Phaser.AUTO, 'TutContainer', { preload: preload, create: create, update:update });
 var upKey;
 var downKey;
 var leftKey;
 var rightKey;
-var xKey;
 //level array
-var levelData;
-
-var level1Data=
-[[1,1,1,1,1,1],
-[1,1,0,0,0,1],
-[1,0,0,0,0,1],
-[2,102,0,0,0,1],
-[1,0,0,0,1,1],
-[1,1,1,1,1,1]];
-
-var level2Data=
-[[1,1,1,1,1,1],
-[1,0,0,0,0,1],
-[1,0,8,0,0,1],
-[1,0,0,0,101,2],
-[1,0,1,0,0,1],
-[1,1,1,1,1,1]];
+var levelData=
+[[1,1,1,1,1,1,1,1,1,1,1,1],
+[1,0,0,0,0,0,0,0,0,1,0,1],
+[1,0,0,0,0,0,0,0,0,1,0,1],
+[1,0,0,1,0,0,0,0,0,0,0,1],
+[1,0,0,1,0,0,0,0,0,0,0,1],
+[1,0,0,1,0,0,0,0,0,0,0,1],
+[1,0,0,0,0,0,0,0,0,1,0,1],
+[1,0,0,0,0,0,0,0,0,0,0,1],
+[1,0,0,0,1,1,1,0,0,0,0,1],
+[1,0,0,0,0,0,0,0,0,0,0,1],
+[1,0,0,0,0,0,0,0,1,1,0,1],
+[1,1,0,0,0,0,0,0,0,0,0,1],
+[1,1,1,1,1,1,1,1,1,1,1,1]];
 
 //x & y values of the direction vector for character movement
 var dX=0;
@@ -46,18 +40,16 @@ var sorcerer;//hero
 var sorcererShadow;//duh
 var shadowOffset=new Phaser.Point(heroWidth+7,11);
 var bmpText;//title text
-var normText;//text to display hero coordinates
+//var normText;//text to display hero coordinates
 var gameScene;//this is the render texture onto which we draw depth sorted scene
 var floorSprite;
 var wallSprite;
-var doorSprite;
-var pickupSprite;
-var heroMapTile;//hero tile values in array explicitly defined out of levelData
+var heroMapTile=new Phaser.Point(3,4);//hero tile making him stand at centre of scene
 var heroMapPos;//2D coordinates of hero map marker sprite in minimap, assume this is mid point of graphic
 var heroSpeed=1.2;//well, speed of our hero 
-var pickupCount=0;
 var hero2DVolume = new Phaser.Point(30,30);//now that we dont have a minimap & hero map sprite, we need this
-var pickupOffset=new Phaser.Point(30,8);
+var cornerMapPos=new Phaser.Point(0,0);
+var halfSpeed=0.7;
 
 
 function preload() {
@@ -69,20 +61,16 @@ function preload() {
     game.load.image('heroShadow', 'assets/ball_shadow.png');
     game.load.image('floor', 'assets/floor.png');
     game.load.image('wall', 'assets/block.png');
-    game.load.image('door', 'assets/door.png');
-    game.load.image('pickup', 'assets/pickup.png');
-    game.load.image('ball', 'assets/ball.png');
     game.load.atlasJSONArray('hero', 'assets/hero_8_4_41_62.png', 'assets/hero_8_4_41_62.json');
 }
 
 function create() {
-    bmpText = game.add.bitmapText(10, 10, 'font', 'Level Swap Tutorial', 18);
-    normText=game.add.text(10,360,"hi");
+    bmpText = game.add.bitmapText(10, 10, 'font', 'Scroll Tutorial', 18);
+    //normText=game.add.text(10,360,"hi");
     upKey = game.input.keyboard.addKey(Phaser.Keyboard.UP);
     downKey = game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
     leftKey = game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
     rightKey = game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
-    xKey=game.input.keyboard.addKey(Phaser.Keyboard.X);
     game.stage.backgroundColor = '#cccccc';
     //we draw the depth sorted scene into this render texture
     gameScene=game.add.renderTexture(game.width,game.height);
@@ -90,13 +78,8 @@ function create() {
     floorSprite= game.make.sprite(0, 0, 'floor');
     wallSprite= game.make.sprite(0, 0, 'wall');
     sorcererShadow=game.make.sprite(0,0,'heroShadow');
-    pickupSprite= game.make.sprite(0, 0, 'pickup');
-    doorSprite= game.make.sprite(0, 0, 'door');
     sorcererShadow.scale= new Phaser.Point(0.5,0.6);
     sorcererShadow.alpha=0.4;
-    levelData=level1Data;
-    heroMapTile=new Phaser.Point(2,2);
-    xKey.onUp.add(triggerListener);// add a Signal listener for up event
     createLevel();
 }
 
@@ -118,12 +101,12 @@ function update(){
     {
         heroMapPos.x +=  heroSpeed * dX;
         heroMapPos.y +=  heroSpeed * dY;
+        
+        //move the corner in opposite direction
+        cornerMapPos.x -=  heroSpeed * dX;
+        cornerMapPos.y -=  heroSpeed * dY;
         //get the new hero map tile
         heroMapTile=getTileCoordinates(heroMapPos,tileWidth);
-        //check for pickup & collect
-        if(onPickupTile()){
-            pickupItem();
-        }
         //depthsort & draw new scene
         renderScene();
     }
@@ -135,7 +118,6 @@ function createLevel(){//create minimap
     heroMapPos.x+=(tileWidth/2);
     heroMapPos.y+=(tileWidth/2);
     heroMapTile=getTileCoordinates(heroMapPos,tileWidth);
-    spawnNewPickup();
     renderScene();//draw once the initial state
 }
 function addHero(){
@@ -164,95 +146,28 @@ function renderScene(){
             if(i==heroMapTile.y&&j==heroMapTile.x){
                 drawHeroIso();
             }
-            if(tileType==8){
-                drawPickupIso(i,j);
-            }
         }
     }
-    normText.text='Collected : '+pickupCount +' coins. (Change level -\'x\' at door)';
+   //normText.text='Collected : '+pickupCount +' coins.';
 }
 function drawHeroIso(){
     var isoPt= new Phaser.Point();//It is not advisable to create points in update loop
-    var heroCornerPt=new Phaser.Point(heroMapPos.x-hero2DVolume.x/2,heroMapPos.y-hero2DVolume.y/2);
+    var heroCornerPt=new Phaser.Point(heroMapPos.x-hero2DVolume.x/2+cornerMapPos.x,heroMapPos.y-hero2DVolume.y/2+cornerMapPos.y);
     isoPt=cartesianToIsometric(heroCornerPt);//find new isometric position for hero from 2D map position
     gameScene.renderXY(sorcererShadow,isoPt.x+borderOffset.x+shadowOffset.x, isoPt.y+borderOffset.y+shadowOffset.y, false);//draw shadow to render texture
     gameScene.renderXY(sorcerer,isoPt.x+borderOffset.x+heroWidth, isoPt.y+borderOffset.y-heroHeight, false);//draw hero to render texture
 }
-function drawPickupIso(i,j){
-    var isoPt= new Phaser.Point();//It is not advisable to create point in update loop
-    var cartPt=new Phaser.Point();//This is here for better code readability.
-    cartPt.x=j*tileWidth;
-    cartPt.y=i*tileWidth;
-    isoPt=cartesianToIsometric(cartPt);
-    gameScene.renderXY(pickupSprite,isoPt.x+borderOffset.x+pickupOffset.x, isoPt.y+borderOffset.y-pickupOffset.y, false);//draw hero to render texture
-}
 function drawTileIso(tileType,i,j){//place isometric level tiles
     var isoPt= new Phaser.Point();//It is not advisable to create point in update loop
     var cartPt=new Phaser.Point();//This is here for better code readability.
-    cartPt.x=j*tileWidth;
-    cartPt.y=i*tileWidth;
+    cartPt.x=j*tileWidth+cornerMapPos.x;
+    cartPt.y=i*tileWidth+cornerMapPos.y;
     isoPt=cartesianToIsometric(cartPt);
     if(tileType==1){
         gameScene.renderXY(wallSprite, isoPt.x+borderOffset.x, isoPt.y+borderOffset.y-wallHeight, false);
-    }else if(tileType==2){
-        gameScene.renderXY(doorSprite, isoPt.x+borderOffset.x, isoPt.y+borderOffset.y-wallHeight, false);
     }else{
         gameScene.renderXY(floorSprite, isoPt.x+borderOffset.x, isoPt.y+borderOffset.y, false);
     }
-}
-function spawnNewPickup(){//spawn new pickup at an empty spot
-    var tileType=0;
-    var tempArray=[];
-    var newPt=new Phaser.Point();
-    for (var i = 0; i < levelData.length; i++)
-    {
-        for (var j = 0; j < levelData[0].length; j++)
-        {
-            tileType=levelData[i][j];
-            if(tileType==0 && heroMapTile.y!=i && heroMapTile.x!=j){
-                newPt=new Phaser.Point();
-                newPt.x=i;
-                newPt.y=j;
-                tempArray.push(newPt);
-            }
-        }
-    }
-    newPt=Phaser.ArrayUtils.getRandomItem(tempArray);
-    levelData[newPt.x][newPt.y]=8;
-}
-function triggerListener(){
-    var trigger=levelData[heroMapTile.y][heroMapTile.x];
-    if(trigger>100){//valid trigger tile
-        trigger-=100;
-        if(trigger==1){//switch to level 1
-            levelData=level1Data;
-        }else {//switch to level 2
-            levelData=level2Data;
-        }
-        for (var i = 0; i < levelData.length; i++)
-        {
-            for (var j = 0; j < levelData[0].length; j++)
-            {
-                trigger=levelData[i][j];
-                if(trigger>100){//find the new trigger tile and place hero there
-                    heroMapTile.y=j;
-                    heroMapTile.x=i;
-                    heroMapPos=new Phaser.Point(heroMapTile.y * tileWidth, heroMapTile.x * tileWidth);
-                    heroMapPos.x+=(tileWidth/2);
-                    heroMapPos.y+=(tileWidth/2);
-                }
-            }
-        }
-    }
-}
-function pickupItem(){
-    pickupCount++;
-    levelData[heroMapTile.y][heroMapTile.x]=0;
-    //spawn next pickup
-    spawnNewPickup();
-}
-function onPickupTile(){//check if there is a pickup on hero tile
-    return (levelData[heroMapTile.y][heroMapTile.x]==8);
 }
 function isWalkable(){//It is not advisable to create points in update loop, but for code readability.
     var able=true;
@@ -315,18 +230,15 @@ function isWalkable(){//It is not advisable to create points in update loop, but
     }
     //check if those corners fall inside a wall after moving
     newTileCorner1=getTileCoordinates(newTileCorner1,tileWidth);
-    if(levelData[newTileCorner1.y][newTileCorner1.x]==1 ||
-    levelData[newTileCorner1.y][newTileCorner1.x]==2){
+    if(levelData[newTileCorner1.y][newTileCorner1.x]==1){
         able=false;
     }
     newTileCorner2=getTileCoordinates(newTileCorner2,tileWidth);
-    if(levelData[newTileCorner2.y][newTileCorner2.x]==1 ||
-    levelData[newTileCorner2.y][newTileCorner2.x]==2){
+    if(levelData[newTileCorner2.y][newTileCorner2.x]==1){
         able=false;
     }
     newTileCorner3=getTileCoordinates(newTileCorner3,tileWidth);
-    if(levelData[newTileCorner3.y][newTileCorner3.x]==1 ||
-    levelData[newTileCorner3.y][newTileCorner3.x]==2){
+    if(levelData[newTileCorner3.y][newTileCorner3.x]==1){
         able=false;
     }
     return able;
@@ -354,13 +266,13 @@ function detectKeyInput(){//assign direction for character & set x,y speed compo
         else if (dY==1)
         {
             facing = "southeast";
-            dX = dY=0.5;
+            dX = dY=halfSpeed;
         }
         else
         {
             facing = "northeast";
-            dX=0.5;
-            dY=-0.5;
+            dX=halfSpeed;
+            dY=-1*halfSpeed;
         }
     }
     else if (leftKey.isDown)
@@ -373,13 +285,13 @@ function detectKeyInput(){//assign direction for character & set x,y speed compo
         else if (dY==1)
         {
             facing = "southwest";
-            dY=0.5;
-            dX=-0.5;
+            dY=halfSpeed;
+            dX=-1*halfSpeed;
         }
         else
         {
             facing = "northwest";
-            dX = dY=-0.5;
+            dX = dY=-1*halfSpeed;
         }
     }
     else
