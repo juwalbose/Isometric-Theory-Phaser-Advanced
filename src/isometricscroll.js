@@ -49,6 +49,7 @@ var heroMapPos;//2D coordinates of hero map marker sprite in minimap, assume thi
 var heroSpeed=1.2;//well, speed of our hero 
 var hero2DVolume = new Phaser.Point(30,30);//now that we dont have a minimap & hero map sprite, we need this
 var cornerMapPos=new Phaser.Point(0,0);
+var cornerMapTile=new Phaser.Point(0,0);
 var halfSpeed=0.7;
 
 
@@ -105,6 +106,7 @@ function update(){
         //move the corner in opposite direction
         cornerMapPos.x -=  heroSpeed * dX;
         cornerMapPos.y -=  heroSpeed * dY;
+        cornerMapTile=getTileCoordinates(cornerMapPos,tileWidth);
         //get the new hero map tile
         heroMapTile=getTileCoordinates(heroMapPos,tileWidth);
         //depthsort & draw new scene
@@ -137,9 +139,18 @@ function addHero(){
 function renderScene(){
     gameScene.clear();//clear the previous frame then draw again
     var tileType=0;
-    for (var i = 0; i < levelData.length; i++)
+    var visibleHorizontalTiles=8;
+    var visibleVerticalTiles=8;
+    //for (var i = 0; i < levelData.length; i++)
+    //{
+        //for (var j = 0; j < levelData[0].length; j++)
+        //{
+    var startTileX=Math.max(0,0-cornerMapTile.x);
+    var startTileY=Math.max(0,0-cornerMapTile.y);
+    //check for border condition
+    for (var i = startTileY; i < startTileY+visibleVerticalTiles; i++)
     {
-        for (var j = 0; j < levelData[0].length; j++)
+        for (var j = startTileX; j < startTileX+visibleHorizontalTiles; j++)
         {
             tileType=levelData[i][j];
             drawTileIso(tileType,i,j);
