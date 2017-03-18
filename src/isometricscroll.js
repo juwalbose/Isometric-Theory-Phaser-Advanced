@@ -11,11 +11,10 @@ var levelData=
 [[1,1,1,1,1,1,1,1,1,1,1,1],
 [1,0,0,0,0,0,0,0,0,1,0,1],
 [1,0,0,0,0,0,0,0,0,1,0,1],
-[1,0,0,1,0,0,0,0,0,0,0,1],
+[1,0,0,0,0,0,0,0,0,0,0,1],
 [1,0,0,1,0,0,0,0,0,0,0,1],
 [1,0,0,1,0,0,0,0,0,0,0,1],
 [1,0,0,0,0,0,0,0,0,1,0,1],
-[1,0,0,0,0,0,0,0,0,0,0,1],
 [1,0,0,0,1,1,1,0,0,0,0,1],
 [1,0,0,0,0,0,0,0,0,0,0,1],
 [1,0,0,0,0,0,0,0,1,1,0,1],
@@ -40,17 +39,18 @@ var sorcerer;//hero
 var sorcererShadow;//duh
 var shadowOffset=new Phaser.Point(heroWidth+7,11);
 var bmpText;//title text
-//var normText;//text to display hero coordinates
+var normText;//text to display hero coordinates
 var gameScene;//this is the render texture onto which we draw depth sorted scene
 var floorSprite;
 var wallSprite;
-var heroMapTile=new Phaser.Point(3,4);//hero tile making him stand at centre of scene
+var heroMapTile=new Phaser.Point(3,3);//hero tile making him stand at centre of scene
 var heroMapPos;//2D coordinates of hero map marker sprite in minimap, assume this is mid point of graphic
 var heroSpeed=1.2;//well, speed of our hero 
 var hero2DVolume = new Phaser.Point(30,30);//now that we dont have a minimap & hero map sprite, we need this
 var cornerMapPos=new Phaser.Point(0,0);
 var cornerMapTile=new Phaser.Point(0,0);
 var halfSpeed=0.7;
+var visibleTiles=new Phaser.Point(6,6);
 
 
 function preload() {
@@ -67,7 +67,6 @@ function preload() {
 
 function create() {
     bmpText = game.add.bitmapText(10, 10, 'font', 'Scroll Tutorial', 18);
-    //normText=game.add.text(10,360,"hi");
     upKey = game.input.keyboard.addKey(Phaser.Keyboard.UP);
     downKey = game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
     leftKey = game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
@@ -82,8 +81,15 @@ function create() {
     sorcererShadow.scale= new Phaser.Point(0.5,0.6);
     sorcererShadow.alpha=0.4;
     createLevel();
+    normText=game.add.text(10,360,"tap to change visible area "+visibleTiles.y +' x '+visibleTiles.x);
+    
+    game.input.activePointer.leftButton.onUp.add(changeVisibleTiles)
 }
-
+function changeVisibleTiles(){
+    visibleTiles.x=Math.min(visibleTiles.x+1,levelData[0].length);
+    visibleTiles.y=Math.min(visibleTiles.y+1,levelData.length);
+    normText.text='visible : '+visibleTiles.y +' x '+visibleTiles.x;
+}
 function update(){
     //check key press
     detectKeyInput();
@@ -139,18 +145,17 @@ function addHero(){
 function renderScene(){
     gameScene.clear();//clear the previous frame then draw again
     var tileType=0;
-    var visibleHorizontalTiles=8;
-    var visibleVerticalTiles=8;
-    //for (var i = 0; i < levelData.length; i++)
-    //{
-        //for (var j = 0; j < levelData[0].length; j++)
-        //{
+    //let us limit the loops within visible area
     var startTileX=Math.max(0,0-cornerMapTile.x);
     var startTileY=Math.max(0,0-cornerMapTile.y);
+    var endTileX=Math.min(levelData[0].length,startTileX+visibleTiles.x);
+    var endTileY=Math.min(levelData.length,startTileY+visibleTiles.y);
+    startTileX=Math.max(0,endTileX-visibleTiles.x);
+    startTileY=Math.max(0,endTileY-visibleTiles.y);
     //check for border condition
-    for (var i = startTileY; i < startTileY+visibleVerticalTiles; i++)
+    for (var i = startTileY; i < endTileY; i++)
     {
-        for (var j = startTileX; j < startTileX+visibleHorizontalTiles; j++)
+        for (var j = startTileX; j < endTileX; j++)
         {
             tileType=levelData[i][j];
             drawTileIso(tileType,i,j);
@@ -159,7 +164,6 @@ function renderScene(){
             }
         }
     }
-   //normText.text='Collected : '+pickupCount +' coins.';
 }
 function drawHeroIso(){
     var isoPt= new Phaser.Point();//It is not advisable to create points in update loop
@@ -174,6 +178,7 @@ function drawTileIso(tileType,i,j){//place isometric level tiles
     cartPt.x=j*tileWidth+cornerMapPos.x;
     cartPt.y=i*tileWidth+cornerMapPos.y;
     isoPt=cartesianToIsometric(cartPt);
+    //we could further optimise by not drawing if tile is outside screen.
     if(tileType==1){
         gameScene.renderXY(wallSprite, isoPt.x+borderOffset.x, isoPt.y+borderOffset.y-wallHeight, false);
     }else{
