@@ -6,8 +6,8 @@ Advanced Isometric theory using the powerful [Phaser framework](https://phaser.i
 
 The original tutorial which was created in flash & actionscript can be found [here](https://gamedevelopment.tutsplus.com/tutorials/creating-isometric-worlds-a-primer-for-game-developers-continued--gamedev-9215).
 
-Source files for the Tuts+ tutorial: [Creating Isometric Worlds - Update Primer Continued](https://gamedevelopment.tutsplus.com/tutorials/creating-isometric-worlds-a-primer-for-game-developers-continued--gamedev-9215)
+Source files for the Tuts+ tutorial: [Creating Isometric Worlds - Update Primer Continued](https://gamedevelopment.tutsplus.com/series/primer-for-creating-isometric-worlds--cms-1165)
 
 **Available on Tuts+ 31 March, 2017**
 
-View the demo at [cloud9 workspace](https://ide.c9.io/juwalbose/isometric_theory_phaser_advanced)
+View the demo at [this jsfiddle](https://jsfiddle.net/juwalbose/pu0gt7nc/)
